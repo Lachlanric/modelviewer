@@ -320,13 +320,21 @@
 
   const MAX_DATA_POINTS = 1000;
 
+  const modelViewer = document.querySelector("model-viewer");
+
   // Listen for messages
   socket.addEventListener("message", (event) => {
-    // console.log(event.data);
 
     const jsonData = JSON.parse(event.data);
 
-    // TODO add x vals
+
+    // Update model viewer
+
+    const roll = jsonData[jsonData.length-1].roll;
+    const pitch = jsonData[jsonData.length-1].pitch;
+    modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
+
+    // Update charts
     const xVals = jsonData.map((pt) => pt["time_us"]);
     chart.data.labels.push(...xVals);
     chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
