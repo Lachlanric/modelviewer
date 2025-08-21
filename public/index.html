@@ -1,0 +1,357 @@
+<head>
+  <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
+
+  <style>
+    .heading {
+      background-color: aliceblue;
+    }
+    .section {
+      width: 50%;
+      margin: 0.5rem;
+      overflow-x: hidden;
+    }
+    .console-container {
+      height: 35vh;
+      overflow-y: scroll;
+      border-style: inset;
+      padding: 0.2rem;
+    }
+    .console-entry:last-child {
+      background-color: lightgrey;
+    }
+    .console-drone {
+      color: rgb(0, 113, 0);
+      font-weight: bold;
+    }
+    .console-web {
+      color: rgb(0, 19, 187);
+    }
+    .action-button {
+      width: 7rem;
+      height: 3rem;
+      font-size: large;
+    }
+    input[type="number"] {
+      width: 7rem;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <h1 class="heading">Drone Control</h1>
+  </div>
+
+  <div style="display: flex">
+    <div class="section">
+      <h4 class="heading">PID params</h4>
+
+      <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Roll</th>
+            <th>Pitch</th>
+            <th>Yaw</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>P</td>
+            <td><input type="number" step="any" id="roll_p" name="roll_p" value="1.0" /></td>
+            <td><input type="number" step="any" id="pitch_p" name="pitch_p" value="1.0" /></td>
+            <td><input type="number" step="any" id="yaw_p" name="yaw_p" value="1.0" /></td>
+          </tr>
+          <tr>
+            <td>I</td>
+            <td><input type="number" step="any" id="roll_i" name="roll_i" value="0.0" /></td>
+            <td><input type="number" step="any" id="pitch_i" name="pitch_i" value="0.0" /></td>
+            <td><input type="number" step="any" id="yaw_i" name="yaw_i" value="0.0" /></td>
+          </tr>
+          <tr>
+            <td>D</td>
+            <td><input type="number" step="any" id="roll_d" name="roll_d" value="0.0" /></td>
+            <td><input type="number" step="any" id="pitch_d" name="pitch_d" value="0.0" /></td>
+            <td><input type="number" step="any" id="yaw_d" name="yaw_d" value="0.0" /></td>
+          </tr>
+          <tr>
+            <td>Integral Limit</td>
+            <td><input type="number" step="any" id="roll_integral_limit" name="roll_integral_limit" value="0.0" /></td>
+            <td><input type="number" step="any" id="pitch_integral_limit" name="pitch_integral_limit" value="0.0" /></td>
+            <td><input type="number" step="any" id="yaw_integral_limit" name="yaw_integral_limit" value="0.0" /></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 class="heading">Motor adjustments</h4>
+
+      <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+          <tr>
+            <th></th>
+            <th>NW</th>
+            <th>NE</th>
+            <th>SW</th>
+            <th>SE</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Scale</td>
+            <td><input type="number" step="0.05" id="nw_scale" name="nw_scale" value="1" /></td>
+            <td><input type="number" step="0.05" id="ne_scale" name="ne_scale" value="1" /></td>
+            <td><input type="number" step="0.05" id="sw_scale" name="sw_scale" value="1" /></td>
+            <td><input type="number" step="0.05" id="se_scale" name="se_scale" value="1" /></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <br />
+
+      <button id="update_pid">Save params</button>
+
+      <h4 class="heading">Throttle</h4>
+
+      <div class="slidecontainer">
+        <input type="range" min="0" max="2000" value="0" step="20" class="slider" id="throttle_slider" style="width: 400px; transform: scaleY(2)" />
+      </div>
+
+      <model-viewer src="droneassem1.glb" ar shadow-intensity="1" orientation="0deg 0deg 0deg" style="width: 100%; height: 50vh"></model-viewer>
+    </div>
+
+    <div class="section">
+      <h4 class="heading">Console</h4>
+
+      <div id="console-container" class="console-container"></div>
+
+      <button class="action-button" onclick="clearConsole()">Clear</button>
+      <button class="action-button" onclick="comms_socket.send('calibrate_mpu6050')">Calibrate</button>
+      <button class="action-button" onclick="comms_socket.send('send_data')">Get Data</button>
+
+      <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
+    </div>
+  </div>
+</body>
+
+<script>
+  // const ip_addr = "192.168.100.160";
+  // const ip_addr = "172.20.10.6";
+  // const ip_addr = "192.168.137.160";
+  const ip_addr = "192.168.0.160";
+  let socket = new WebSocket(`ws://${ip_addr}/ws`);
+  let pid_socket = new WebSocket(`ws://${ip_addr}/pid`);
+  let ctrl_socket = new WebSocket(`ws://${ip_addr}/ctrl`);
+  let comms_socket = new WebSocket(`ws://${ip_addr}/comms`);
+  // let data_socket = new WebSocket(`ws://${ip_addr}/data`);
+
+  let count = 0;
+
+  function xyz_to_rthetaphi(x, y, z) {
+    const r = Math.sqrt(x * x + y * y + z * z);
+    const theta = Math.atan2(y, x);
+    const phi = Math.atan2(Math.sqrt(x * x + y * y), z);
+    return [r, theta, phi];
+  }
+
+  function xyz_to_euler(x, y, z) {
+    // Assume yaw=0
+    let roll = Math.atan2(y, z);
+    let pitch = Math.atan2(-x, Math.sqrt(y * y + z * z));
+    let yaw = 0;
+    return [roll, pitch, yaw];
+  }
+
+  function degs(rad) {
+    return (rad * 180) / Math.PI;
+  }
+
+  function console_log(tag, msg) {
+    const nowMs = new Date();
+    const pad = (n, z = 2) => n.toString().padStart(z, "0");
+    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(nowMs.getMilliseconds(), 3)}`;
+    const container = document.querySelector(".console-container");
+    const entry = document.createElement("div");
+    entry.className = `console-entry console-${tag}`;
+    entry.textContent = `[${timeStr}] ${msg}`;
+    container.appendChild(entry);
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // Socket connection opened
+  socket.addEventListener("open", (event) => {
+    console_log("web", "Connected to websocket");
+  });
+
+  // PID connection opened
+  pid_socket.addEventListener("open", (event) => {
+    console_log("web", "Connected to PID CONTROLLER websocket");
+  });
+
+  // Comms connection opened
+  comms_socket.addEventListener("open", (event) => {
+    console_log("web", "Connected to COMMS websocket");
+  });
+
+  // // Comms connection opened
+  // data_socket.addEventListener("open", (event) => {
+  //   console_log("web", "Connected to DATA websocket");
+  // });
+
+  let sent_throttle_val = -1;
+
+  // Ctrl connection opened
+  ctrl_socket.addEventListener("open", (event) => {
+    console_log("web", "Connected to CTRL websocket");
+
+    // Throttle slider
+    const throttle_slider = document.getElementById("throttle_slider");
+    setInterval(() => {
+      const new_throttle_val = throttle_slider.value;
+      if (new_throttle_val != sent_throttle_val) {
+        const ctrl_params = [throttle_slider.value];
+        ctrl_socket.send(new Float32Array(ctrl_params));
+        sent_throttle_val = new_throttle_val;
+      }
+    }, 100);
+  });
+
+  function clearConsole() {
+    document.getElementById("console-container").innerHTML = "";
+  }
+
+  // PID parameters
+  document.getElementById("update_pid").addEventListener("click", () => {
+    const pid_params = [
+      document.getElementById("roll_p").value,
+      document.getElementById("pitch_p").value,
+      document.getElementById("yaw_p").value,
+
+      document.getElementById("roll_i").value,
+      document.getElementById("pitch_i").value,
+      document.getElementById("yaw_i").value,
+
+      document.getElementById("roll_d").value,
+      document.getElementById("pitch_d").value,
+      document.getElementById("yaw_d").value,
+
+      document.getElementById("roll_integral_limit").value,
+      document.getElementById("pitch_integral_limit").value,
+      document.getElementById("yaw_integral_limit").value,
+
+      document.getElementById("nw_scale").value,
+      document.getElementById("ne_scale").value,
+      document.getElementById("sw_scale").value,
+      document.getElementById("se_scale").value,
+    ];
+    localStorage.setItem("pid_params", JSON.stringify(pid_params));
+    console_log("web", "Saved PID params to local storage: " + pid_params);
+    try {
+      pid_socket.send(new Float32Array(pid_params));
+    } catch {
+      console_log("web", "Couldn't send params to drone.");
+    }
+  });
+
+  // Load pid params on reload
+  const pid_params_str = localStorage.getItem("pid_params");
+  if (pid_params_str) {
+    const pid_params = JSON.parse(pid_params_str);
+
+    document.getElementById("roll_p").value = pid_params[0];
+    document.getElementById("pitch_p").value = pid_params[1];
+    document.getElementById("yaw_p").value = pid_params[2];
+    document.getElementById("roll_i").value = pid_params[3];
+    document.getElementById("pitch_i").value = pid_params[4];
+    document.getElementById("yaw_i").value = pid_params[5];
+    document.getElementById("roll_d").value = pid_params[6];
+    document.getElementById("pitch_d").value = pid_params[7];
+    document.getElementById("yaw_d").value = pid_params[8];
+    document.getElementById("roll_integral_limit").value = pid_params[9];
+    document.getElementById("pitch_integral_limit").value = pid_params[10];
+    document.getElementById("yaw_integral_limit").value = pid_params[11];
+    document.getElementById("nw_scale").value = pid_params[12];
+    document.getElementById("ne_scale").value = pid_params[13];
+    document.getElementById("sw_scale").value = pid_params[14];
+    document.getElementById("se_scale").value = pid_params[15];
+    console_log("web", "PID params loaded from local storage");
+  } else {
+    console_log("web", "No PID params to load");
+  }
+
+  // Listen for messages
+  comms_socket.addEventListener("message", (event) => {
+    console_log("drone", event.data);
+  });
+
+  // // Listen for data
+  // data_socket.addEventListener("message", (event) => {
+  //   console.log(event.data);
+  //   console.log(JSON.parse(event.data));
+  // });
+
+  // const xValues = [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+  // const yValues = [860, 1140, 1060, 1060, 1070, 1110, 1330, 2210, 7830, 2478];
+
+  const chart = new Chart("myChart", {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [],
+    },
+    options: {
+      legend: { display: true },
+      responsive: true,
+      animation: { duration: 0 },
+    },
+  });
+
+  function stringToColor(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const color = "#" + ("000000" + (hash & 0xffffff).toString(16)).slice(-6);
+    return color;
+  }
+
+  function getLastNItems(arr, N) {
+    return arr.slice(Math.max(arr.length - N, 0));
+  }
+
+  const MAX_DATA_POINTS = 1000;
+
+  // Listen for messages
+  socket.addEventListener("message", (event) => {
+    // console.log(event.data);
+
+    const jsonData = JSON.parse(event.data);
+
+    // TODO add x vals
+    const xVals = jsonData.map((pt) => pt["time_us"]);
+    chart.data.labels.push(...xVals);
+    chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
+
+    Object.keys(jsonData[0])
+      .filter((key) => key != "time_us")
+      .forEach((key) => {
+        const yVals = jsonData.map((pt) => pt[key]);
+        let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
+        if (existingDataSet != undefined) {
+          // add y vals
+          existingDataSet.data.push(...yVals);
+        } else {
+          existingDataSet = {
+            data: yVals,
+            borderColor: stringToColor(key),
+            fill: false,
+            label: key,
+          };
+          chart.data.datasets.push(existingDataSet);
+        }
+
+        existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
+      });
+
+    chart.update();
+  });
+</script>
