@@ -152,15 +152,37 @@
 </body>
 
 <script>
-  // const ip_addr = "192.168.100.160";
-  const ip_addr = "172.20.10.6";
-  // const ip_addr = "192.168.137.160";
-  // const ip_addr = "192.168.0.160";
-  let socket = new WebSocket(`ws://${ip_addr}/ws`);
-  let pid_socket = new WebSocket(`ws://${ip_addr}/pid`);
-  let ctrl_socket = new WebSocket(`ws://${ip_addr}/ctrl`);
-  let comms_socket = new WebSocket(`ws://${ip_addr}/comms`);
-  // let data_socket = new WebSocket(`ws://${ip_addr}/data`);
+  // // const ip_addr = "192.168.100.160";
+  // const ip_addr = "172.20.10.6";
+  // // const ip_addr = "192.168.137.160";
+  // // const ip_addr = "192.168.0.160";
+  // let socket = new WebSocket(`ws://${ip_addr}/ws`);
+  // let pid_socket = new WebSocket(`ws://${ip_addr}/pid`);
+  // let ctrl_socket = new WebSocket(`ws://${ip_addr}/ctrl`);
+  // let comms_socket = new WebSocket(`ws://${ip_addr}/comms`);
+  // // let data_socket = new WebSocket(`ws://${ip_addr}/data`);
+
+  class MSG_TYPES {
+    static SERIAL_DRONE_PARAMS = 0;
+    static SERIAL_DRONE_DATA = 1;
+    static SERIAL_DRONE_CALIBRATE = 2;
+    static SERIAL_COMMS_MSG = 3;
+  }
+
+  let ws_comms = new WebSocket(`ws://localhost:3000/comms`);
+
+  ws_comms.addEventListener("open", (event) => {
+    console_log("web", "Connected to ws");
+    ws_comms.send("hello from browser");
+  });
+
+  ws_comms.addEventListener("message", (event) => {
+    // console_log("drone", event.data);
+    const { msg_type, data } = JSON.parse(event.data);
+    if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
+      console_log("drone", data);
+    }
+  });
 
   let count = 0;
 
@@ -198,20 +220,20 @@
     container.scrollTop = container.scrollHeight;
   }
 
-  // Socket connection opened
-  socket.addEventListener("open", (event) => {
-    console_log("web", "Connected to websocket");
-  });
+  // // Socket connection opened
+  // socket.addEventListener("open", (event) => {
+  //   console_log("web", "Connected to websocket");
+  // });
 
-  // PID connection opened
-  pid_socket.addEventListener("open", (event) => {
-    console_log("web", "Connected to PID CONTROLLER websocket");
-  });
+  // // PID connection opened
+  // pid_socket.addEventListener("open", (event) => {
+  //   console_log("web", "Connected to PID CONTROLLER websocket");
+  // });
 
-  // Comms connection opened
-  comms_socket.addEventListener("open", (event) => {
-    console_log("web", "Connected to COMMS websocket");
-  });
+  // // Comms connection opened
+  // comms_socket.addEventListener("open", (event) => {
+  //   console_log("web", "Connected to COMMS websocket");
+  // });
 
   // // Comms connection opened
   // data_socket.addEventListener("open", (event) => {
@@ -220,21 +242,21 @@
 
   let sent_throttle_val = -1;
 
-  // Ctrl connection opened
-  ctrl_socket.addEventListener("open", (event) => {
-    console_log("web", "Connected to CTRL websocket");
+  // // Ctrl connection opened
+  // ctrl_socket.addEventListener("open", (event) => {
+  //   console_log("web", "Connected to CTRL websocket");
 
-    // Throttle slider
-    const throttle_slider = document.getElementById("throttle_slider");
-    setInterval(() => {
-      const new_throttle_val = throttle_slider.value;
-      if (new_throttle_val != sent_throttle_val) {
-        const ctrl_params = [throttle_slider.value];
-        ctrl_socket.send(new Float32Array(ctrl_params));
-        sent_throttle_val = new_throttle_val;
-      }
-    }, 100);
-  });
+  //   // Throttle slider
+  //   const throttle_slider = document.getElementById("throttle_slider");
+  //   setInterval(() => {
+  //     const new_throttle_val = throttle_slider.value;
+  //     if (new_throttle_val != sent_throttle_val) {
+  //       const ctrl_params = [throttle_slider.value];
+  //       ctrl_socket.send(new Float32Array(ctrl_params));
+  //       sent_throttle_val = new_throttle_val;
+  //     }
+  //   }, 100);
+  // });
 
   function clearConsole() {
     document.getElementById("console-container").innerHTML = "";
@@ -300,10 +322,10 @@
     console_log("web", "No PID params to load");
   }
 
-  // Listen for messages
-  comms_socket.addEventListener("message", (event) => {
-    console_log("drone", event.data);
-  });
+  // // Listen for messages
+  // comms_socket.addEventListener("message", (event) => {
+  //   console_log("drone", event.data);
+  // });
 
   // // Listen for data
   // data_socket.addEventListener("message", (event) => {
@@ -354,42 +376,42 @@
 
   const modelViewer = document.querySelector("model-viewer");
 
-  // Listen for messages
-  socket.addEventListener("message", (event) => {
-    const jsonData = JSON.parse(event.data);
+  // // Listen for messages
+  // socket.addEventListener("message", (event) => {
+  //   const jsonData = JSON.parse(event.data);
 
-    // Update model viewer
+  //   // Update model viewer
 
-    const roll = jsonData[jsonData.length - 1].roll;
-    const pitch = jsonData[jsonData.length - 1].pitch;
-    modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
+  //   const roll = jsonData[jsonData.length - 1].roll;
+  //   const pitch = jsonData[jsonData.length - 1].pitch;
+  //   modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
 
-    // Update charts
-    const xVals = jsonData.map((pt) => pt["time_us"]);
-    chart.data.labels.push(...xVals);
-    chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
+  //   // Update charts
+  //   const xVals = jsonData.map((pt) => pt["time_us"]);
+  //   chart.data.labels.push(...xVals);
+  //   chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
 
-    Object.keys(jsonData[0])
-      .filter((key) => key != "time_us")
-      .forEach((key) => {
-        const yVals = jsonData.map((pt) => pt[key]);
-        let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
-        if (existingDataSet != undefined) {
-          // add y vals
-          existingDataSet.data.push(...yVals);
-        } else {
-          existingDataSet = {
-            data: yVals,
-            borderColor: stringToColor(key),
-            fill: false,
-            label: key,
-          };
-          chart.data.datasets.push(existingDataSet);
-        }
+  //   Object.keys(jsonData[0])
+  //     .filter((key) => key != "time_us")
+  //     .forEach((key) => {
+  //       const yVals = jsonData.map((pt) => pt[key]);
+  //       let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
+  //       if (existingDataSet != undefined) {
+  //         // add y vals
+  //         existingDataSet.data.push(...yVals);
+  //       } else {
+  //         existingDataSet = {
+  //           data: yVals,
+  //           borderColor: stringToColor(key),
+  //           fill: false,
+  //           label: key,
+  //         };
+  //         chart.data.datasets.push(existingDataSet);
+  //       }
 
-        existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
-      });
+  //       existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
+  //     });
 
-    chart.update();
-  });
+  //   chart.update();
+  // });
 </script>
