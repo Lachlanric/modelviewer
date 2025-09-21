@@ -77,7 +77,9 @@
           <tr>
             <td>Integral Limit</td>
             <td><input type="number" step="any" id="roll_integral_limit" name="roll_integral_limit" value="0.0" /></td>
-            <td><input type="number" step="any" id="pitch_integral_limit" name="pitch_integral_limit" value="0.0" /></td>
+            <td>
+              <input type="number" step="any" id="pitch_integral_limit" name="pitch_integral_limit" value="0.0" />
+            </td>
             <td><input type="number" step="any" id="yaw_integral_limit" name="yaw_integral_limit" value="0.0" /></td>
           </tr>
         </tbody>
@@ -113,10 +115,25 @@
       <h4 class="heading">Throttle</h4>
 
       <div class="slidecontainer">
-        <input type="range" min="0" max="2000" value="0" step="20" class="slider" id="throttle_slider" style="width: 400px; transform: scaleY(2)" />
+        <input
+          type="range"
+          min="0"
+          max="2000"
+          value="0"
+          step="20"
+          class="slider"
+          id="throttle_slider"
+          style="width: 400px; transform: scaleY(2)"
+        />
       </div>
 
-      <model-viewer src="droneassem1.glb" ar shadow-intensity="1" orientation="0deg 0deg 0deg" style="width: 100%; height: 50vh"></model-viewer>
+      <model-viewer
+        src="droneassem1.glb"
+        ar
+        shadow-intensity="1"
+        orientation="0deg 0deg 0deg"
+        style="width: 100%; height: 50vh"
+      ></model-viewer>
     </div>
 
     <div class="section">
@@ -125,8 +142,9 @@
       <div id="console-container" class="console-container"></div>
 
       <button class="action-button" onclick="clearConsole()">Clear</button>
-      <button class="action-button" onclick="comms_socket.send('calibrate_mpu6050')">Calibrate</button>
-      <button class="action-button" onclick="comms_socket.send('send_data')">Get Data</button>
+      <button class="action-button" onclick="sendDataSerial('/calibrate', '')">Calibrate</button>
+      <!-- <button class="action-button" onclick="comms_socket.send('calibrate_mpu6050')">Calibrate</button> -->
+      <!-- <button class="action-button" onclick="comms_socket.send('send_data')">Get Data</button> -->
 
       <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
     </div>
@@ -135,9 +153,9 @@
 
 <script>
   // const ip_addr = "192.168.100.160";
-  // const ip_addr = "172.20.10.6";
+  const ip_addr = "172.20.10.6";
   // const ip_addr = "192.168.137.160";
-  const ip_addr = "192.168.0.160";
+  // const ip_addr = "192.168.0.160";
   let socket = new WebSocket(`ws://${ip_addr}/ws`);
   let pid_socket = new WebSocket(`ws://${ip_addr}/pid`);
   let ctrl_socket = new WebSocket(`ws://${ip_addr}/ctrl`);
@@ -168,7 +186,10 @@
   function console_log(tag, msg) {
     const nowMs = new Date();
     const pad = (n, z = 2) => n.toString().padStart(z, "0");
-    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(nowMs.getMilliseconds(), 3)}`;
+    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(
+      nowMs.getMilliseconds(),
+      3
+    )}`;
     const container = document.querySelector(".console-container");
     const entry = document.createElement("div");
     entry.className = `console-entry console-${tag}`;
@@ -246,7 +267,8 @@
     localStorage.setItem("pid_params", JSON.stringify(pid_params));
     console_log("web", "Saved PID params to local storage: " + pid_params);
     try {
-      pid_socket.send(new Float32Array(pid_params));
+      // pid_socket.send(new Float32Array(pid_params));
+      sendDataSerial("/params", pid_params);
     } catch {
       console_log("web", "Couldn't send params to drone.");
     }
@@ -318,20 +340,28 @@
     return arr.slice(Math.max(arr.length - N, 0));
   }
 
+  function sendDataSerial(endpoint, data) {
+    fetch(endpoint, {
+      method: "POST", // Specify the HTTP method as POST
+      headers: {
+        "Content-Type": "application/json", // Indicate that the body contains JSON data
+      },
+      body: JSON.stringify({ data: data }), // Convert the JavaScript object to a JSON string
+    });
+  }
+
   const MAX_DATA_POINTS = 1000;
 
   const modelViewer = document.querySelector("model-viewer");
 
   // Listen for messages
   socket.addEventListener("message", (event) => {
-
     const jsonData = JSON.parse(event.data);
-
 
     // Update model viewer
 
-    const roll = jsonData[jsonData.length-1].roll;
-    const pitch = jsonData[jsonData.length-1].pitch;
+    const roll = jsonData[jsonData.length - 1].roll;
+    const pitch = jsonData[jsonData.length - 1].pitch;
     modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
 
     // Update charts
