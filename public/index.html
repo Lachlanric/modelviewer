@@ -182,6 +182,9 @@
     if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
       console_log("drone", data);
     }
+    if (msg_type == MSG_TYPES.SERIAL_DRONE_DATA) {
+      updateChart(data);
+    }
   });
 
   let count = 0;
@@ -372,7 +375,7 @@
     });
   }
 
-  const MAX_DATA_POINTS = 1000;
+  const MAX_DATA_POINTS = 100;
 
   const modelViewer = document.querySelector("model-viewer");
 
@@ -380,38 +383,39 @@
   // socket.addEventListener("message", (event) => {
   //   const jsonData = JSON.parse(event.data);
 
-  //   // Update model viewer
+  function updateChart(jsonData) {
+    // Update model viewer
+    const roll = jsonData[jsonData.length - 1].roll;
+    const pitch = jsonData[jsonData.length - 1].pitch;
+    modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
 
-  //   const roll = jsonData[jsonData.length - 1].roll;
-  //   const pitch = jsonData[jsonData.length - 1].pitch;
-  //   modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
+    // Update charts
+    const xVals = jsonData.map((pt) => pt["time_us"]);
+    chart.data.labels.push(...xVals);
+    chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
 
-  //   // Update charts
-  //   const xVals = jsonData.map((pt) => pt["time_us"]);
-  //   chart.data.labels.push(...xVals);
-  //   chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
+    Object.keys(jsonData[0])
+      .filter((key) => key != "time_us")
+      .forEach((key) => {
+        const yVals = jsonData.map((pt) => pt[key]);
+        let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
+        if (existingDataSet != undefined) {
+          // add y vals
+          existingDataSet.data.push(...yVals);
+        } else {
+          existingDataSet = {
+            data: yVals,
+            borderColor: stringToColor(key),
+            fill: false,
+            label: key,
+          };
+          chart.data.datasets.push(existingDataSet);
+        }
 
-  //   Object.keys(jsonData[0])
-  //     .filter((key) => key != "time_us")
-  //     .forEach((key) => {
-  //       const yVals = jsonData.map((pt) => pt[key]);
-  //       let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
-  //       if (existingDataSet != undefined) {
-  //         // add y vals
-  //         existingDataSet.data.push(...yVals);
-  //       } else {
-  //         existingDataSet = {
-  //           data: yVals,
-  //           borderColor: stringToColor(key),
-  //           fill: false,
-  //           label: key,
-  //         };
-  //         chart.data.datasets.push(existingDataSet);
-  //       }
+        existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
+      });
 
-  //       existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
-  //     });
-
-  //   chart.update();
+    chart.update();
+  }
   // });
 </script>
