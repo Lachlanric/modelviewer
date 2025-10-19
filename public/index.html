@@ -12,7 +12,7 @@
       overflow-x: hidden;
     }
     .console-container {
-      height: 35vh;
+      height: 25vh;
       overflow-y: scroll;
       border-style: inset;
       padding: 0.2rem;
@@ -112,21 +112,6 @@
 
       <button id="update_pid">Save params</button>
 
-      <h4 class="heading">Throttle</h4>
-
-      <div class="slidecontainer">
-        <input
-          type="range"
-          min="0"
-          max="2000"
-          value="0"
-          step="20"
-          class="slider"
-          id="throttle_slider"
-          style="width: 400px; transform: scaleY(2)"
-        />
-      </div>
-
       <model-viewer
         src="droneassem1.glb"
         ar
@@ -134,6 +119,9 @@
         orientation="0deg 0deg 0deg"
         style="width: 100%; height: 50vh"
       ></model-viewer>
+
+      <canvas id="joystickCanvas" width="400" height="200" style="border: 1px solid #dddddd"></canvas>
+      <script></script>
     </div>
 
     <div class="section">
@@ -143,10 +131,12 @@
 
       <button class="action-button" onclick="clearConsole()">Clear</button>
       <button class="action-button" onclick="sendDataSerial('/calibrate', '')">Calibrate</button>
-      <!-- <button class="action-button" onclick="comms_socket.send('calibrate_mpu6050')">Calibrate</button> -->
-      <!-- <button class="action-button" onclick="comms_socket.send('send_data')">Get Data</button> -->
+      <button class="action-button" onclick="exportData()" id="export-data-button">Export Data</button>
 
       <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
+
+      <!-- <img id="cameraFeed" width="320" height="240" /> -->
+      <img id="cameraFeed" width="160" height="120" />
     </div>
   </div>
 </body>
@@ -167,6 +157,7 @@
     static SERIAL_DRONE_DATA = 1;
     static SERIAL_DRONE_CALIBRATE = 2;
     static SERIAL_COMMS_MSG = 3;
+    static SERIAL_JOYSTICK = 4;
   }
 
   let ws_comms = new WebSocket(`ws://localhost:3000/comms`);
@@ -178,12 +169,28 @@
 
   ws_comms.addEventListener("message", (event) => {
     // console_log("drone", event.data);
-    const { msg_type, data } = JSON.parse(event.data);
-    if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
-      console_log("drone", data);
-    }
-    if (msg_type == MSG_TYPES.SERIAL_DRONE_DATA) {
-      updateChart(data);
+    try {
+      const { msg_type, data } = JSON.parse(event.data);
+      if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
+        console_log("drone", data);
+      }
+      if (msg_type == MSG_TYPES.SERIAL_DRONE_DATA) {
+        updateChart(data);
+      }
+      if (msg_type == MSG_TYPES.SERIAL_JOYSTICK) {
+        console.log(data);
+        drawJoystick(data.lx, -data.ly, data.rx, -data.ry);
+      }
+    } catch {
+      // Binary data
+      const jpegBlob = event.data;
+      var reader = new FileReader();
+      reader.readAsDataURL(jpegBlob);
+      reader.onloadend = function () {
+        var base64data = reader.result;
+        console.log(base64data);
+        document.querySelector("img#cameraFeed").src = base64data;
+      };
     }
   });
 
@@ -223,46 +230,44 @@
     container.scrollTop = container.scrollHeight;
   }
 
-  // // Socket connection opened
-  // socket.addEventListener("open", (event) => {
-  //   console_log("web", "Connected to websocket");
-  // });
-
-  // // PID connection opened
-  // pid_socket.addEventListener("open", (event) => {
-  //   console_log("web", "Connected to PID CONTROLLER websocket");
-  // });
-
-  // // Comms connection opened
-  // comms_socket.addEventListener("open", (event) => {
-  //   console_log("web", "Connected to COMMS websocket");
-  // });
-
-  // // Comms connection opened
-  // data_socket.addEventListener("open", (event) => {
-  //   console_log("web", "Connected to DATA websocket");
-  // });
-
   let sent_throttle_val = -1;
-
-  // // Ctrl connection opened
-  // ctrl_socket.addEventListener("open", (event) => {
-  //   console_log("web", "Connected to CTRL websocket");
-
-  //   // Throttle slider
-  //   const throttle_slider = document.getElementById("throttle_slider");
-  //   setInterval(() => {
-  //     const new_throttle_val = throttle_slider.value;
-  //     if (new_throttle_val != sent_throttle_val) {
-  //       const ctrl_params = [throttle_slider.value];
-  //       ctrl_socket.send(new Float32Array(ctrl_params));
-  //       sent_throttle_val = new_throttle_val;
-  //     }
-  //   }, 100);
-  // });
 
   function clearConsole() {
     document.getElementById("console-container").innerHTML = "";
+  }
+
+  // Joystick viz
+  const canvas = document.getElementById("joystickCanvas");
+  const ctx = canvas.getContext("2d");
+  const center_left = 100;
+  const center_right = canvas.width - 100;
+  const centerY = canvas.height / 2;
+  const radius = 80;
+
+  function drawJoystick(lx = 0, ly = 0, rx = 0, ry = 0) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw outer squares
+    ctx.beginPath();
+    ctx.rect(center_left - radius, centerY - radius, radius * 2, radius * 2);
+    ctx.strokeStyle = "gray";
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.rect(center_right - radius, centerY - radius, radius * 2, radius * 2);
+    ctx.strokeStyle = "gray";
+    ctx.stroke();
+
+    // Draw joystick position
+    ctx.beginPath();
+    ctx.arc(center_left + lx * radius, centerY + ly * radius, 10, 0, 2 * Math.PI);
+    ctx.fillStyle = "blue";
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(center_right + rx * radius, centerY + ry * radius, 10, 0, 2 * Math.PI);
+    ctx.fillStyle = "blue";
+    ctx.fill();
   }
 
   // PID parameters
@@ -375,7 +380,7 @@
     });
   }
 
-  const MAX_DATA_POINTS = 100;
+  const MAX_DATA_POINTS = 400;
 
   const modelViewer = document.querySelector("model-viewer");
 
@@ -383,11 +388,42 @@
   // socket.addEventListener("message", (event) => {
   //   const jsonData = JSON.parse(event.data);
 
+  function downloadCSV(jsonData) {
+    if (jsonData.length === 0) return;
+
+    const headers = Object.keys(jsonData[0]);
+    const csv = [headers.join(","), ...jsonData.map((row) => headers.map((field) => row[field]).join(","))].join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.setAttribute("href", url);
+    a.setAttribute("download", "drone_data.csv");
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }
+
+  function exportData() {
+    downloadCSV(
+      chart.data.labels.map((time, i) => {
+        const row = { time_us: time };
+        chart.data.datasets.forEach((ds) => {
+          row[ds.label] = ds.data[i];
+        });
+        return row;
+      })
+    );
+  }
+
   function updateChart(jsonData) {
     // Update model viewer
     const roll = jsonData[jsonData.length - 1].roll;
     const pitch = jsonData[jsonData.length - 1].pitch;
-    modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
+    const yaw = jsonData[jsonData.length - 1].yaw;
+    modelViewer.orientation = `${-roll}deg ${pitch}deg ${yaw}deg`;
+    // modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
 
     // Update charts
     const xVals = jsonData.map((pt) => pt["time_us"]);
@@ -406,6 +442,7 @@
           existingDataSet = {
             data: yVals,
             borderColor: stringToColor(key),
+            borderWidth: 2,
             fill: false,
             label: key,
           };
@@ -417,5 +454,4 @@
 
     chart.update();
   }
-  // });
 </script>

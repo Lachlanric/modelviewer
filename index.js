@@ -9,7 +9,11 @@ const expressWs = require("express-ws")(app);
 app.use(express.json());
 app.use(express.static("public")); // 'public' is the name of your static directory
 
-const serialport = new SerialPort({ path: "COM6", baudRate: 115200 });
+// const serialport = new SerialPort({ path: "COM6", baudRate: 2000000 })
+// const serialport = new SerialPort({ path: "COM6", baudRate: 1843200 });
+// const serialport = new SerialPort({ path: "COM6", baudRate: 1500000 });
+const serialport = new SerialPort({ path: "COM6", baudRate: 921600 });
+// const serialport = new SerialPort({ path: "COM6", baudRate: 115200 });
 
 // const parser = serialport.pipe(new DelimiterParser({ delimiter: Buffer.from(">>>") })); // ">>>" in hex
 // parser.on("data", (preceeding) => {
@@ -35,15 +39,37 @@ parser.on("data", (preceeding) => {
   const jsonStr = bufferStr.split(beginStr).slice(1).join("");
 
   // Forward onto the browser
-  if (ws_handle && JSON.parse(jsonStr)) {
-    ws_handle.send(jsonStr);
+  try {
+    if (ws_handle && JSON.parse(jsonStr)) {
+      ws_handle.send(jsonStr);
+    }
+  } catch {
+    console.log("Dropped bad msg.");
   }
 });
 
-// Read data that is available but keep the stream in "paused mode"
-serialport.on("readable", function () {
-  process.stdout.write(serialport.read());
+const cameraParser = serialport.pipe(new DelimiterParser({ delimiter: Buffer.from("$$$$$") })); // ">>>" in hex
+cameraParser.on("data", (preceeding) => {
+  const beginPattern = Buffer.from("#####");
+  // console.log("Preceeding");
+  // console.log(preceeding);
+  const startIdx = preceeding.indexOf(beginPattern);
+  // console.log("Index of start: " + startIdx);
+  const jpegData = preceeding.slice(startIdx + 5);
+
+  // Forward onto the browser
+  if (ws_handle) {
+    ws_handle.send(jpegData);
+  }
+
+  // console.log(jpegData);
+  // console.log("Received camera frame");
 });
+
+// // Read data that is available but keep the stream in "paused mode"
+// serialport.on("readable", function () {
+//   process.stdout.write(serialport.read());
+// });
 
 class MSG_TYPES {
   static SERIAL_DRONE_PARAMS = 0;
