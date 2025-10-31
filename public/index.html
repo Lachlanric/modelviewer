@@ -16,6 +16,10 @@
       overflow-y: scroll;
       border-style: inset;
       padding: 0.2rem;
+      font-family: monospace;
+    }
+    .console-entry > pre {
+      margin: 0;
     }
     .console-entry:last-child {
       background-color: lightgrey;
@@ -33,7 +37,7 @@
       font-size: large;
     }
     input[type="number"] {
-      width: 7rem;
+      width: 5rem;
     }
   </style>
 </head>
@@ -100,10 +104,37 @@
         <tbody>
           <tr>
             <td>Scale</td>
-            <td><input type="number" step="0.05" id="nw_scale" name="nw_scale" value="1" /></td>
-            <td><input type="number" step="0.05" id="ne_scale" name="ne_scale" value="1" /></td>
-            <td><input type="number" step="0.05" id="sw_scale" name="sw_scale" value="1" /></td>
-            <td><input type="number" step="0.05" id="se_scale" name="se_scale" value="1" /></td>
+            <td><input type="number" step="0.01" id="nw_scale" name="nw_scale" value="1" /></td>
+            <td><input type="number" step="0.01" id="ne_scale" name="ne_scale" value="1" /></td>
+            <td><input type="number" step="0.01" id="sw_scale" name="sw_scale" value="1" /></td>
+            <td><input type="number" step="0.01" id="se_scale" name="se_scale" value="1" /></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 class="heading">Direction target angles</h4>
+
+      <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Forward</th>
+            <th>Backward</th>
+            <th>Left</th>
+            <th>Right</th>
+            <th>Turn left</th>
+            <th>Turn right</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Scale</td>
+            <td><input type="number" step="1.0" id="forward_angle" name="forward_angle" value="20.0" /></td>
+            <td><input type="number" step="1.0" id="backward_angle" name="backward_angle" value="20.0" /></td>
+            <td><input type="number" step="1.0" id="left_angle" name="left_angle" value="20.0" /></td>
+            <td><input type="number" step="1.0" id="right_angle" name="right_angle" value="20.0" /></td>
+            <td><input type="number" step="1.0" id="turn_left_angle" name="turn_left_angle" value="20.0" /></td>
+            <td><input type="number" step="1.0" id="turn_right_angle" name="turn_right_angle" value="20.0" /></td>
           </tr>
         </tbody>
       </table>
@@ -112,16 +143,18 @@
 
       <button id="update_pid">Save params</button>
 
-      <model-viewer
-        src="droneassem1.glb"
-        ar
-        shadow-intensity="1"
-        orientation="0deg 0deg 0deg"
-        style="width: 100%; height: 50vh"
-      ></model-viewer>
+      <div style="display: flex">
+        <div class="section">
+          <h4 class="heading">Drone orientation</h4>
 
-      <canvas id="joystickCanvas" width="400" height="200" style="border: 1px solid #dddddd"></canvas>
-      <script></script>
+          <model-viewer src="droneassem1.glb" ar shadow-intensity="1" orientation="0deg 0deg 0deg" style="width: 100%; height: 20vh"></model-viewer>
+        </div>
+        <div class="section">
+          <h4 class="heading">Joystick Input</h4>
+
+          <canvas id="joystickCanvas" width="300" height="150" style="border: 1px solid #dddddd"></canvas>
+        </div>
+      </div>
     </div>
 
     <div class="section">
@@ -133,9 +166,15 @@
       <button class="action-button" onclick="sendDataSerial('/calibrate', '')">Calibrate</button>
       <button class="action-button" onclick="exportData()" id="export-data-button">Export Data</button>
 
+      <br />
+
+      <div>
+        <input type="checkbox" id="hideall" />
+        <label for="hideall">Hide all</label>
+      </div>
+
       <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
 
-      <!-- <img id="cameraFeed" width="320" height="240" /> -->
       <img id="cameraFeed" width="160" height="120" />
     </div>
   </div>
@@ -178,7 +217,6 @@
         updateChart(data);
       }
       if (msg_type == MSG_TYPES.SERIAL_JOYSTICK) {
-        console.log(data);
         drawJoystick(data.lx, -data.ly, data.rx, -data.ry);
       }
     } catch {
@@ -218,14 +256,11 @@
   function console_log(tag, msg) {
     const nowMs = new Date();
     const pad = (n, z = 2) => n.toString().padStart(z, "0");
-    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(
-      nowMs.getMilliseconds(),
-      3
-    )}`;
+    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(nowMs.getMilliseconds(), 3)}`;
     const container = document.querySelector(".console-container");
     const entry = document.createElement("div");
     entry.className = `console-entry console-${tag}`;
-    entry.textContent = `[${timeStr}] ${msg}`;
+    entry.innerHTML = `<pre>[${timeStr}] ${msg}</pre>`;
     container.appendChild(entry);
     container.scrollTop = container.scrollHeight;
   }
@@ -239,10 +274,11 @@
   // Joystick viz
   const canvas = document.getElementById("joystickCanvas");
   const ctx = canvas.getContext("2d");
-  const center_left = 100;
-  const center_right = canvas.width - 100;
+  const radius = 60;
+  const pad = (canvas.width - 4 * radius) / 4; // padding
+  const center_left = radius + pad;
+  const center_right = canvas.width - radius - pad;
   const centerY = canvas.height / 2;
-  const radius = 80;
 
   function drawJoystick(lx = 0, ly = 0, rx = 0, ry = 0) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -293,6 +329,13 @@
       document.getElementById("ne_scale").value,
       document.getElementById("sw_scale").value,
       document.getElementById("se_scale").value,
+
+      document.getElementById("forward_angle").value,
+      document.getElementById("backward_angle").value,
+      document.getElementById("left_angle").value,
+      document.getElementById("right_angle").value,
+      document.getElementById("turn_left_angle").value,
+      document.getElementById("turn_right_angle").value,
     ];
     localStorage.setItem("pid_params", JSON.stringify(pid_params));
     console_log("web", "Saved PID params to local storage: " + pid_params);
@@ -325,6 +368,12 @@
     document.getElementById("ne_scale").value = pid_params[13];
     document.getElementById("sw_scale").value = pid_params[14];
     document.getElementById("se_scale").value = pid_params[15];
+    document.getElementById("forward_angle").value = pid_params[16];
+    document.getElementById("backward_angle").value = pid_params[17];
+    document.getElementById("left_angle").value = pid_params[18];
+    document.getElementById("right_angle").value = pid_params[19];
+    document.getElementById("turn_left_angle").value = pid_params[20];
+    document.getElementById("turn_right_angle").value = pid_params[21];
     console_log("web", "PID params loaded from local storage");
   } else {
     console_log("web", "No PID params to load");
@@ -351,20 +400,30 @@
       datasets: [],
     },
     options: {
-      legend: { display: true },
       responsive: true,
       animation: { duration: 0 },
+      legend: {
+        display: true,
+        onClick(e, legendItem) {
+          ///// ORIGINAL FUNCTION /////
+          var index = legendItem.datasetIndex;
+          var ci = this.chart;
+          var meta = ci.getDatasetMeta(index);
+
+          // See controller.isDatasetVisible comment
+          meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+          chart.data.datasets[index].hidden = meta.hidden ? meta.hidden : null; // extra
+
+          // We hid a dataset ... rerender the chart
+          ci.update();
+          ///// ORIGINAL FUNCTION /////
+
+          // Store
+          localStorage.setItem(chart.data.datasets[index].label, meta.hidden);
+        },
+      },
     },
   });
-
-  function stringToColor(str) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const color = "#" + ("000000" + (hash & 0xffffff).toString(16)).slice(-6);
-    return color;
-  }
 
   function getLastNItems(arr, N) {
     return arr.slice(Math.max(arr.length - N, 0));
@@ -417,12 +476,51 @@
     );
   }
 
+  const checkbox = document.querySelector("input#hideall");
+
+  checkbox.addEventListener("change", function () {
+    chart.data.datasets.forEach((ds, index) => {
+      var meta = chart.getDatasetMeta(index);
+      meta.hidden = this.checked ? this.checked : null;
+      ds.hidden = this.checked ? this.checked : null;
+
+      localStorage.setItem(ds.label, this.checked);
+    });
+    chart.update();
+  });
+
+  const COLORS = [
+    "#F42525",
+    "#25F43A",
+    "#4E25F4",
+    "#F46325",
+    "#25F478",
+    "#8C25F4",
+    "#F4A125",
+    "#25F4B6",
+    "#CA25F4",
+    "#F4DF25",
+    "#25F4F4",
+    "#F425DF",
+    "#CAF425",
+    "#25B6F4",
+    "#F425A1",
+    "#8CF425",
+    "#2578F4",
+    "#F42563",
+    "#4EF425",
+    "#253AF4",
+  ];
+
+  let col_idx = 0;
+
   function updateChart(jsonData) {
     // Update model viewer
     const roll = jsonData[jsonData.length - 1].roll;
     const pitch = jsonData[jsonData.length - 1].pitch;
     const yaw = jsonData[jsonData.length - 1].yaw;
     modelViewer.orientation = `${-roll}deg ${pitch}deg ${yaw}deg`;
+    modelViewer.scale = `1.5 1.5 1.5`;
     // modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
 
     // Update charts
@@ -439,12 +537,16 @@
           // add y vals
           existingDataSet.data.push(...yVals);
         } else {
+          const col = COLORS[col_idx];
+          col_idx = (col_idx + 1) % COLORS.length;
           existingDataSet = {
             data: yVals,
-            borderColor: stringToColor(key),
-            borderWidth: 2,
+            borderColor: col,
+            borderWidth: 3,
+            pointRadius: 0, // Disable points for this dataset
             fill: false,
             label: key,
+            hidden: JSON.parse(localStorage.getItem(key)),
           };
           chart.data.datasets.push(existingDataSet);
         }
