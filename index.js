@@ -77,7 +77,8 @@ class MSG_TYPES {
   static SERIAL_DRONE_CALIBRATE = 2;
   static SERIAL_COMMS_MSG = 3;
   static SERIAL_JOYSTICK = 4;
-  static SERIAL_OBTAIN_DRONE_PARAMS = 5;
+  static SERIAL_REQUEST_DRONE_PARAMS = 5;
+  static SERIAL_RECEIVE_DRONE_PARAMS = 6;
 }
 
 function getMsgType(hexDataStr) {
@@ -132,9 +133,9 @@ app.post("/calibrate", (req, res) => {
   res.status(200).json({ message: "Calibrated" });
 });
 
-app.post("/obtain_params", (req, res) => {
-  serialport.write(msg_type_byte(MSG_TYPES.SERIAL_DRONE_CALIBRATE));
-  res.status(200).json({ message: "Calibrated" });
+app.post("/obtain_pid", (req, res) => {
+  serialport.write(msg_type_byte(MSG_TYPES.SERIAL_REQUEST_DRONE_PARAMS));
+  res.status(200).json({ message: "Requested PID params" });
 });
 
 app.ws("/comms", (ws, req) => {
