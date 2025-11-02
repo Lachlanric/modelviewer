@@ -142,6 +142,10 @@
       <br />
 
       <button id="update_pid">Save params</button>
+      <button id="obtain_pid">Load params from drone</button>
+
+      <button id="undo" onclick="undo_params()">Undo</button>
+      <button id="redo" onclick="redo_params()">Redo</button>
 
       <div style="display: flex">
         <div class="section">
@@ -197,6 +201,47 @@
     static SERIAL_DRONE_CALIBRATE = 2;
     static SERIAL_COMMS_MSG = 3;
     static SERIAL_JOYSTICK = 4;
+    static SERIAL_OBTAIN_DRONE_PARAMS = 5;
+  }
+
+  const PARAM_SIZE = 22;
+  const params_tree = [];
+  params_tree.push(Array(PARAM_SIZE).fill(0));
+  let params_tree_ptr = 0;
+
+  function undo_params() {
+    if (params_tree_ptr <= 0) {
+      // can't do it
+      params_tree_ptr = 0;
+      console_log("web", "Can't undo further | " + params_tree_ptr);
+      return;
+    }
+
+    params_tree_ptr -= 1;
+    console_log("web", "Undone params");
+    load_params_from_arr(params_tree[params_tree_ptr]);
+  }
+
+  function redo_params() {
+    if (params_tree_ptr >= params_tree.length - 1) {
+      // can't do it
+      params_tree_ptr = params_tree.length - 1;
+      console_log("web", "Can't redo further | " + params_tree_ptr);
+      return;
+    }
+
+    params_tree_ptr += 1;
+    console_log("web", "Redone params");
+    load_params_from_arr(params_tree[params_tree_ptr]);
+  }
+
+  function insert_into_param_tree(pid_params) {
+    if (params_tree_ptr < params_tree.length - 1) {
+      params_tree.splice(params_tree_ptr + 1);
+    }
+    params_tree.push([...pid_params]);
+    params_tree_ptr += 1;
+    console_log("web", "Inserted params into tree");
   }
 
   let ws_comms = new WebSocket(`ws://localhost:3000/comms`);
@@ -271,6 +316,31 @@
     document.getElementById("console-container").innerHTML = "";
   }
 
+  function load_params_from_arr(pid_params) {
+    document.getElementById("roll_p").value = pid_params[0];
+    document.getElementById("pitch_p").value = pid_params[1];
+    document.getElementById("yaw_p").value = pid_params[2];
+    document.getElementById("roll_i").value = pid_params[3];
+    document.getElementById("pitch_i").value = pid_params[4];
+    document.getElementById("yaw_i").value = pid_params[5];
+    document.getElementById("roll_d").value = pid_params[6];
+    document.getElementById("pitch_d").value = pid_params[7];
+    document.getElementById("yaw_d").value = pid_params[8];
+    document.getElementById("roll_integral_limit").value = pid_params[9];
+    document.getElementById("pitch_integral_limit").value = pid_params[10];
+    document.getElementById("yaw_integral_limit").value = pid_params[11];
+    document.getElementById("nw_scale").value = pid_params[12];
+    document.getElementById("ne_scale").value = pid_params[13];
+    document.getElementById("sw_scale").value = pid_params[14];
+    document.getElementById("se_scale").value = pid_params[15];
+    document.getElementById("forward_angle").value = pid_params[16];
+    document.getElementById("backward_angle").value = pid_params[17];
+    document.getElementById("left_angle").value = pid_params[18];
+    document.getElementById("right_angle").value = pid_params[19];
+    document.getElementById("turn_left_angle").value = pid_params[20];
+    document.getElementById("turn_right_angle").value = pid_params[21];
+  }
+
   // Joystick viz
   const canvas = document.getElementById("joystickCanvas");
   const ctx = canvas.getContext("2d");
@@ -339,6 +409,7 @@
     ];
     localStorage.setItem("pid_params", JSON.stringify(pid_params));
     console_log("web", "Saved PID params to local storage: " + pid_params);
+    insert_into_param_tree(pid_params);
     try {
       // pid_socket.send(new Float32Array(pid_params));
       sendDataSerial("/params", pid_params);
@@ -351,33 +422,17 @@
   const pid_params_str = localStorage.getItem("pid_params");
   if (pid_params_str) {
     const pid_params = JSON.parse(pid_params_str);
-
-    document.getElementById("roll_p").value = pid_params[0];
-    document.getElementById("pitch_p").value = pid_params[1];
-    document.getElementById("yaw_p").value = pid_params[2];
-    document.getElementById("roll_i").value = pid_params[3];
-    document.getElementById("pitch_i").value = pid_params[4];
-    document.getElementById("yaw_i").value = pid_params[5];
-    document.getElementById("roll_d").value = pid_params[6];
-    document.getElementById("pitch_d").value = pid_params[7];
-    document.getElementById("yaw_d").value = pid_params[8];
-    document.getElementById("roll_integral_limit").value = pid_params[9];
-    document.getElementById("pitch_integral_limit").value = pid_params[10];
-    document.getElementById("yaw_integral_limit").value = pid_params[11];
-    document.getElementById("nw_scale").value = pid_params[12];
-    document.getElementById("ne_scale").value = pid_params[13];
-    document.getElementById("sw_scale").value = pid_params[14];
-    document.getElementById("se_scale").value = pid_params[15];
-    document.getElementById("forward_angle").value = pid_params[16];
-    document.getElementById("backward_angle").value = pid_params[17];
-    document.getElementById("left_angle").value = pid_params[18];
-    document.getElementById("right_angle").value = pid_params[19];
-    document.getElementById("turn_left_angle").value = pid_params[20];
-    document.getElementById("turn_right_angle").value = pid_params[21];
+    insert_into_param_tree(pid_params);
+    load_params_from_arr(pid_params);
     console_log("web", "PID params loaded from local storage");
   } else {
     console_log("web", "No PID params to load");
   }
+
+  // Undo / redo
+  // document.getElementById("undo").addEventListener("click", undo_params);
+  // document.getElementById("redo").addEventListener("click", redo_params);
+
 
   // // Listen for messages
   // comms_socket.addEventListener("message", (event) => {
