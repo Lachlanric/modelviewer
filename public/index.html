@@ -5,14 +5,26 @@
   <style>
     .heading {
       background-color: aliceblue;
+      margin-right: 0.5rem;
+    }
+    h4 {
+      margin-top: 12px;
+      margin-bottom: 12px;
     }
     .section {
       width: 50%;
-      margin: 0.5rem;
+      overflow-x: hidden;
+    }
+    .section-40 {
+      width: 40%;
+      overflow-x: hidden;
+    }
+    .section-60 {
+      width: 60%;
       overflow-x: hidden;
     }
     .console-container {
-      height: 25vh;
+      height: 9rem;
       overflow-y: scroll;
       border-style: inset;
       padding: 0.2rem;
@@ -32,8 +44,8 @@
       color: rgb(0, 19, 187);
     }
     .action-button {
-      width: 7rem;
-      height: 3rem;
+      min-width: 7rem;
+      height: 2rem;
       font-size: large;
     }
     input[type="number"] {
@@ -42,52 +54,60 @@
   </style>
 </head>
 <body>
-  <div>
+  <!-- <div>
     <h1 class="heading">Drone Control</h1>
-  </div>
+  </div> -->
 
   <div style="display: flex">
     <div class="section">
-      <h4 class="heading">PID params</h4>
+      <div style="display: flex">
+        <div class="section-60">
+          <h4 class="heading">PID params</h4>
 
-      <table border="1" cellpadding="5" cellspacing="0">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Roll</th>
-            <th>Pitch</th>
-            <th>Yaw</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>P</td>
-            <td><input type="number" step="any" id="roll_p" name="roll_p" value="1.0" /></td>
-            <td><input type="number" step="any" id="pitch_p" name="pitch_p" value="1.0" /></td>
-            <td><input type="number" step="any" id="yaw_p" name="yaw_p" value="1.0" /></td>
-          </tr>
-          <tr>
-            <td>I</td>
-            <td><input type="number" step="any" id="roll_i" name="roll_i" value="0.0" /></td>
-            <td><input type="number" step="any" id="pitch_i" name="pitch_i" value="0.0" /></td>
-            <td><input type="number" step="any" id="yaw_i" name="yaw_i" value="0.0" /></td>
-          </tr>
-          <tr>
-            <td>D</td>
-            <td><input type="number" step="any" id="roll_d" name="roll_d" value="0.0" /></td>
-            <td><input type="number" step="any" id="pitch_d" name="pitch_d" value="0.0" /></td>
-            <td><input type="number" step="any" id="yaw_d" name="yaw_d" value="0.0" /></td>
-          </tr>
-          <tr>
-            <td>Integral Limit</td>
-            <td><input type="number" step="any" id="roll_integral_limit" name="roll_integral_limit" value="0.0" /></td>
-            <td>
-              <input type="number" step="any" id="pitch_integral_limit" name="pitch_integral_limit" value="0.0" />
-            </td>
-            <td><input type="number" step="any" id="yaw_integral_limit" name="yaw_integral_limit" value="0.0" /></td>
-          </tr>
-        </tbody>
-      </table>
+          <table border="1" cellpadding="5" cellspacing="0">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Roll</th>
+                <th>Pitch</th>
+                <th>Yaw</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>P</td>
+                <td><input type="number" step="any" id="roll_p" name="roll_p" value="1.0" /></td>
+                <td><input type="number" step="any" id="pitch_p" name="pitch_p" value="1.0" /></td>
+                <td><input type="number" step="any" id="yaw_p" name="yaw_p" value="1.0" /></td>
+              </tr>
+              <tr>
+                <td>I</td>
+                <td><input type="number" step="any" id="roll_i" name="roll_i" value="0.0" /></td>
+                <td><input type="number" step="any" id="pitch_i" name="pitch_i" value="0.0" /></td>
+                <td><input type="number" step="any" id="yaw_i" name="yaw_i" value="0.0" /></td>
+              </tr>
+              <tr>
+                <td>D</td>
+                <td><input type="number" step="any" id="roll_d" name="roll_d" value="0.0" /></td>
+                <td><input type="number" step="any" id="pitch_d" name="pitch_d" value="0.0" /></td>
+                <td><input type="number" step="any" id="yaw_d" name="yaw_d" value="0.0" /></td>
+              </tr>
+              <tr>
+                <td>Integral Limit</td>
+                <td><input type="number" step="any" id="roll_integral_limit" name="roll_integral_limit" value="0.0" /></td>
+                <td>
+                  <input type="number" step="any" id="pitch_integral_limit" name="pitch_integral_limit" value="0.0" />
+                </td>
+                <td><input type="number" step="any" id="yaw_integral_limit" name="yaw_integral_limit" value="0.0" /></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="section-40">
+          <h4 class="heading">Camera Feed</h4>
+          <img id="camera-feed" width="160" height="120" />
+        </div>
+      </div>
 
       <h4 class="heading">Motor adjustments</h4>
 
@@ -141,8 +161,8 @@
 
       <br />
 
-      <button id="update_pid">Save params</button>
-      <button id="obtain_pid">Load params from drone</button>
+      <button class="action-button" id="update_pid">Save params</button>
+      <button class="action-button" id="obtain_pid">Load params from drone</button>
 
       <div style="display: flex">
         <div class="section">
@@ -167,16 +187,14 @@
       <button class="action-button" onclick="sendDataSerial('/calibrate', '')">Calibrate</button>
       <button class="action-button" onclick="exportData()" id="export-data-button">Export Data</button>
 
-      <br />
+      <h4 class="heading">Drone Data</h4>
 
       <div>
         <input type="checkbox" id="hideall" />
-        <label for="hideall">Hide all</label>
+        <label for="hideall">Show all</label>
       </div>
 
       <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
-
-      <img id="cameraFeed" width="160" height="120" />
     </div>
   </div>
 </body>
@@ -234,12 +252,10 @@
       reader.onloadend = function () {
         var base64data = reader.result;
         console.log(base64data);
-        document.querySelector("img#cameraFeed").src = base64data;
+        document.querySelector("img#camera-feed").src = base64data;
       };
     }
   });
-
-  let count = 0;
 
   function xyz_to_rthetaphi(x, y, z) {
     const r = Math.sqrt(x * x + y * y + z * z);
@@ -271,8 +287,6 @@
     container.appendChild(entry);
     container.scrollTop = container.scrollHeight;
   }
-
-  let sent_throttle_val = -1;
 
   function clearConsole() {
     document.getElementById("console-container").innerHTML = "";
@@ -477,11 +491,12 @@
   const checkbox = document.querySelector("input#hideall");
   checkbox.addEventListener("change", function () {
     chart.data.datasets.forEach((ds, index) => {
-      var meta = chart.getDatasetMeta(index);
-      meta.hidden = this.checked ? this.checked : null;
-      ds.hidden = this.checked ? this.checked : null;
+      const checked = this.checked ? this.checked : null;
+      const meta = chart.getDatasetMeta(index);
+      meta.hidden = !checked;
+      ds.hidden = !checked;
 
-      localStorage.setItem(ds.label, this.checked);
+      localStorage.setItem(ds.label, !checked);
     });
     chart.update();
   });
@@ -553,4 +568,7 @@
 
     chart.update();
   }
+
+  // Default camera image
+  document.querySelector("img#camera-feed").src = "no-data.png";
 </script>
