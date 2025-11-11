@@ -56,6 +56,9 @@
     input[type="number"] {
       width: 5rem;
     }
+    .param-table {
+      margin-bottom: 0.8rem;
+    }
   </style>
 </head>
 <body>
@@ -69,7 +72,7 @@
         <div class="section-60">
           <h4 class="heading">Stabiliser parameters</h4>
 
-          <table border="1" cellpadding="5" cellspacing="0">
+          <table border="1" cellpadding="5" cellspacing="0" class="param-table">
             <thead>
               <tr>
                 <th></th>
@@ -132,9 +135,7 @@
 
       <!-- <h4 class="heading">Adjustments</h4> -->
 
-      <br />
-
-      <table border="1" cellpadding="5" cellspacing="0">
+      <table border="1" cellpadding="5" cellspacing="0" class="param-table">
         <thead>
           <tr>
             <th></th>
@@ -155,11 +156,9 @@
         </tbody>
       </table>
 
-      <br />
-
       <!-- <h4 class="heading">Direction target angles</h4> -->
 
-      <table border="1" cellpadding="5" cellspacing="0">
+      <table border="1" cellpadding="5" cellspacing="0" class="param-table">
         <thead>
           <tr>
             <th></th>
@@ -167,29 +166,45 @@
             <th>Backward</th>
             <th>Left</th>
             <th>Right</th>
-            <th>Turn left</th>
-            <th>Turn right</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Target angle</td>
+            <td>Target angle (deg)</td>
             <td><input type="number" step="1.0" id="forward_angle" name="forward_angle" value="20.0" /></td>
             <td><input type="number" step="1.0" id="backward_angle" name="backward_angle" value="20.0" /></td>
             <td><input type="number" step="1.0" id="left_angle" name="left_angle" value="20.0" /></td>
             <td><input type="number" step="1.0" id="right_angle" name="right_angle" value="20.0" /></td>
-            <td><input type="number" step="1.0" id="turn_left_angle" name="turn_left_angle" value="20.0" /></td>
-            <td><input type="number" step="1.0" id="turn_right_angle" name="turn_right_angle" value="20.0" /></td>
           </tr>
         </tbody>
       </table>
 
-      <br />
+      <table border="1" cellpadding="5" cellspacing="0" class="param-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Deadzone</th>
+            <th>Speed (deg/s)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Yaw control</td>
+            <td><input type="number" step="1.0" id="yaw_deadzone" name="yaw_deadzone" value="0.7" /></td>
+            <td><input type="number" step="1.0" id="yaw_speed" name="yaw_speed" value="180.0" /></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <tbody>
+        <tr>
+          <td></td>
+        </tr>
+      </tbody>
 
       <button class="action-button" id="update_pid">Save params</button>
       <button class="action-button" id="obtain_pid">Load params from drone</button>
 
-      <br />
       <br />
 
       <div style="display: flex">
@@ -346,8 +361,8 @@
     document.getElementById("backward_angle").value = pid_params[17];
     document.getElementById("left_angle").value = pid_params[18];
     document.getElementById("right_angle").value = pid_params[19];
-    document.getElementById("turn_left_angle").value = pid_params[20];
-    document.getElementById("turn_right_angle").value = pid_params[21];
+    document.getElementById("yaw_deadzone").value = pid_params[20];
+    document.getElementById("yaw_speed").value = pid_params[21];
   }
 
   // Joystick viz
@@ -413,8 +428,9 @@
       document.getElementById("backward_angle").value,
       document.getElementById("left_angle").value,
       document.getElementById("right_angle").value,
-      document.getElementById("turn_left_angle").value,
-      document.getElementById("turn_right_angle").value,
+
+      document.getElementById("yaw_deadzone").value,
+      document.getElementById("yaw_speed").value,
     ];
     localStorage.setItem("pid_params", JSON.stringify(pid_params));
     console_log("web", "Saved PID params to local storage: " + pid_params);
