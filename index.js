@@ -8,11 +8,6 @@ const expressWs = require("express-ws")(app);
 app.use(express.json());
 app.use(express.static("public")); // 'public' is the name of your static directory
 
-// const SERIAL_PORT = new SerialPort({ path: "COM6", baudRate: 2000000 });
-// const SERIAL_PORT = new SerialPort({ path: "COM6", baudRate: 1843200 });
-// const SERIAL_PORT = new SerialPort({ path: "COM6", baudRate: 1500000 });
-// const SERIAL_PORT = new SerialPort({ path: "COM6", baudRate: 115200 });
-
 let SERIAL_PORT = null;
 let WS_HANDLE = null;
 
@@ -68,7 +63,7 @@ function floats_to_buf(data) {
 }
 
 function close_serial(callback) {
-  if (SERIAL_PORT != null) {
+  if (SERIAL_PORT) {
     SERIAL_PORT.close(() => {
       console.log("Serial port closed");
       WS_HANDLE.send(JSON.stringify({ msg_type: MSG_TYPES.SERIAL_COMMS_MSG, data: "Serial port closed" }));
@@ -85,18 +80,24 @@ function close_serial(callback) {
 }
 
 app.post("/params", (req, res) => {
-  const { data } = req.body;
-  SERIAL_PORT.write(Buffer.concat([msg_type_byte(MSG_TYPES.SERIAL_DRONE_PARAMS), floats_to_buf(data)]));
+  if (SERIAL_PORT) {
+    const { data } = req.body;
+    SERIAL_PORT.write(Buffer.concat([msg_type_byte(MSG_TYPES.SERIAL_DRONE_PARAMS), floats_to_buf(data)]));
+  }
   res.status(200).json({ message: "Received" });
 });
 
 app.post("/calibrate", (req, res) => {
-  SERIAL_PORT.write(msg_type_byte(MSG_TYPES.SERIAL_DRONE_CALIBRATE));
+  if (SERIAL_PORT) {
+    SERIAL_PORT.write(msg_type_byte(MSG_TYPES.SERIAL_DRONE_CALIBRATE));
+  }
   res.status(200).json({ message: "Calibrated" });
 });
 
 app.post("/obtain_pid", (req, res) => {
-  SERIAL_PORT.write(msg_type_byte(MSG_TYPES.SERIAL_REQUEST_DRONE_PARAMS));
+  if (SERIAL_PORT) {
+    SERIAL_PORT.write(msg_type_byte(MSG_TYPES.SERIAL_REQUEST_DRONE_PARAMS));
+  }
   res.status(200).json({ message: "Requested PID params" });
 });
 
@@ -142,8 +143,3 @@ app.get("/", (req, res) => {
 });
 
 app.listen(3000);
-
-(async function () {
-  console.log("SerialPort.list()");
-  console.log(await SerialPort.list());
-})();
