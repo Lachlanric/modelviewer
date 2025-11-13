@@ -3,7 +3,6 @@ function updateCameraFrame(jpegBlob) {
   reader.readAsDataURL(jpegBlob);
   reader.onloadend = function () {
     var base64data = reader.result;
-    console.log(base64data);
     document.querySelector("img#camera-feed").src = base64data;
   };
 }

@@ -202,9 +202,11 @@
   });
 
   webSocket.addEventListener("message", (event) => {
-    const jsonData = JSON.parse(event.data);
-    if (!jsonData || !jsonData.msg_type) {
-      // Binary data (camera)
+    let jsonData;
+
+    try {
+      jsonData = JSON.parse(event.data);
+    } catch {
       updateCameraFrame(event.data);
       return;
     }
