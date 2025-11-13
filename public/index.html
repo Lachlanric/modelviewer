@@ -2,70 +2,9 @@
   <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/2.9.4/Chart.js"></script>
 
-  <style>
-    .heading {
-      background-color: aliceblue;
-      margin-right: 0.5rem;
-      padding-left: 0.2rem;
-    }
-    h4 {
-      margin-top: 12px;
-      margin-bottom: 12px;
-    }
-    .section {
-      width: 50%;
-      overflow-x: hidden;
-    }
-    .section-40 {
-      width: 40%;
-      overflow-x: hidden;
-    }
-    .section-60 {
-      width: 60%;
-      overflow-x: hidden;
-    }
-    .section-30 {
-      width: 30%;
-      overflow-x: hidden;
-    }
-    .console-container {
-      height: 9rem;
-      overflow-y: scroll;
-      border-style: inset;
-      padding: 0.2rem;
-      font-family: monospace;
-    }
-    .console-entry > pre {
-      margin: 0;
-    }
-    .console-entry:last-child {
-      background-color: lightgrey;
-    }
-    .console-drone {
-      color: rgb(0, 113, 0);
-      font-weight: bold;
-    }
-    .console-web {
-      color: rgb(0, 19, 187);
-    }
-    .action-button {
-      min-width: 7rem;
-      height: 2rem;
-      font-size: large;
-    }
-    input[type="number"] {
-      width: 5rem;
-    }
-    .param-table {
-      margin-bottom: 0.8rem;
-    }
-  </style>
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <!-- <div>
-    <h1 class="heading">Drone Control</h1>
-  </div> -->
-
   <div style="display: flex">
     <div class="section">
       <div style="display: flex">
@@ -133,8 +72,6 @@
         </div>
       </div>
 
-      <!-- <h4 class="heading">Adjustments</h4> -->
-
       <table border="1" cellpadding="5" cellspacing="0" class="param-table">
         <thead>
           <tr>
@@ -155,8 +92,6 @@
           </tr>
         </tbody>
       </table>
-
-      <!-- <h4 class="heading">Direction target angles</h4> -->
 
       <table border="1" cellpadding="5" cellspacing="0" class="param-table">
         <thead>
@@ -202,8 +137,8 @@
         </tr>
       </tbody>
 
-      <button class="action-button" id="update_pid">Save params</button>
-      <button class="action-button" id="obtain_pid">Load params from drone</button>
+      <button class="action-button" id="update_params">Save params</button>
+      <button class="action-button" id="obtain_params">Load params from drone</button>
 
       <br />
 
@@ -211,7 +146,7 @@
         <div class="section-30">
           <h4 class="heading">Drone orientation</h4>
 
-          <model-viewer src="droneassem1.glb" ar shadow-intensity="1" orientation="0deg 0deg 0deg" style="width: 100%; height: 20vh"></model-viewer>
+          <model-viewer src="models/droneassem1.glb" ar shadow-intensity="1" orientation="0deg 0deg 0deg" style="width: 100%; height: 20vh"></model-viewer>
         </div>
         <div class="section-40">
           <h4 class="heading">Joystick Input</h4>
@@ -232,7 +167,7 @@
       <div id="console-container" class="console-container"></div>
 
       <button class="action-button" onclick="clearConsole()">Clear</button>
-      <button class="action-button" onclick="sendDataSerial('/calibrate', '')">Calibrate</button>
+      <button class="action-button" onclick="sendJsonData('/calibrate', '')">Calibrate</button>
       <button class="action-button" onclick="exportData()" id="export-data-button">Export Data</button>
 
       <h4 class="heading">Drone Data</h4>
@@ -242,418 +177,99 @@
         <label for="hideall">Show all</label>
       </div>
 
-      <canvas id="myChart" style="width: 100%; max-width: 700px"></canvas>
+      <canvas id="drone-data-chart" style="width: 100%; max-width: 700px"></canvas>
     </div>
   </div>
 </body>
 
-<script>
-  // // const ip_addr = "192.168.100.160";
-  // const ip_addr = "172.20.10.6";
-  // // const ip_addr = "192.168.137.160";
-  // // const ip_addr = "192.168.0.160";
-  // let socket = new WebSocket(`ws://${ip_addr}/ws`);
-  // let pid_socket = new WebSocket(`ws://${ip_addr}/pid`);
-  // let ctrl_socket = new WebSocket(`ws://${ip_addr}/ctrl`);
-  // let comms_socket = new WebSocket(`ws://${ip_addr}/comms`);
-  // // let data_socket = new WebSocket(`ws://${ip_addr}/data`);
+<script src="js/camera.js"></script>
+<script src="js/chart.js"></script>
+<script src="js/console.js"></script>
+<script src="js/joystick.js"></script>
+<script src="js/model-viewer.js"></script>
+<script src="js/params.js"></script>
+<script src="js/serial.js"></script>
 
-  class MSG_TYPES {
-    static SERIAL_DRONE_PARAMS = 0;
-    static SERIAL_DRONE_DATA = 1;
-    static SERIAL_DRONE_CALIBRATE = 2;
-    static SERIAL_COMMS_MSG = 3;
-    static SERIAL_JOYSTICK = 4;
-    static SERIAL_REQUEST_DRONE_PARAMS = 5;
-    static SERIAL_RECEIVE_DRONE_PARAMS = 6;
-  }
+<script type="module">
+  /* WEB SOCKET */
+  import { MSG_TYPES } from "/js/message_types.js";
 
-  let ws_comms = new WebSocket(`ws://localhost:3000/comms`);
+  let webSocket = new WebSocket("ws://localhost:3000/comms");
 
-  ws_comms.addEventListener("open", (event) => {
+  webSocket.addEventListener("open", (event) => {
     console_log("web", "Connected to ws");
-    ws_comms.send("hello from browser");
+    webSocket.send("Hello from browser");
   });
 
-  ws_comms.addEventListener("message", (event) => {
-    // console_log("drone", event.data);
-    try {
-      const { msg_type, data } = JSON.parse(event.data);
-      if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
-        console_log("drone", data);
-      }
-      if (msg_type == MSG_TYPES.SERIAL_DRONE_DATA) {
-        updateChart(data);
-      }
-      if (msg_type == MSG_TYPES.SERIAL_JOYSTICK) {
-        drawJoystick(data.lx, -data.ly, data.rx, -data.ry);
-      }
-      if (msg_type == MSG_TYPES.SERIAL_RECEIVE_DRONE_PARAMS) {
-        console_log("web", "Obtained PID params from drone: " + data);
-        load_params_from_arr(data);
-      }
-    } catch {
-      // Binary data
-      const jpegBlob = event.data;
-      var reader = new FileReader();
-      reader.readAsDataURL(jpegBlob);
-      reader.onloadend = function () {
-        var base64data = reader.result;
-        console.log(base64data);
-        document.querySelector("img#camera-feed").src = base64data;
-      };
+  webSocket.addEventListener("message", (event) => {
+    const jsonData = JSON.parse(event.data);
+    if (!jsonData || !jsonData.msg_type) {
+      // Binary data (camera)
+      updateCameraFrame(event.data);
+      return;
+    }
+
+    const { msg_type, data } = jsonData;
+
+    if (msg_type == MSG_TYPES.SERIAL_COMMS_MSG) {
+      console_log("drone", data);
+      return;
+    }
+
+    if (msg_type == MSG_TYPES.SERIAL_DRONE_DATA) {
+      updateChart(data);
+      const roll = data[data.length - 1].roll;
+      const pitch = data[data.length - 1].pitch;
+      const yaw = data[data.length - 1].yaw;
+      updateModelViewer(roll, pitch, yaw);
+      return;
+    }
+
+    if (msg_type == MSG_TYPES.SERIAL_JOYSTICK) {
+      drawJoystick(data.lx, -data.ly, data.rx, -data.ry);
+      return;
+    }
+
+    if (msg_type == MSG_TYPES.SERIAL_RECEIVE_DRONE_PARAMS) {
+      console_log("web", "Obtained PID params from drone: " + data);
+      load_params_from_arr(data);
+      return;
     }
   });
 
-  function xyz_to_rthetaphi(x, y, z) {
-    const r = Math.sqrt(x * x + y * y + z * z);
-    const theta = Math.atan2(y, x);
-    const phi = Math.atan2(Math.sqrt(x * x + y * y), z);
-    return [r, theta, phi];
+  function sendJsonData(endpoint, data) {
+    // Invoke server endoint with data
+    fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ data: data }),
+    });
   }
 
-  function xyz_to_euler(x, y, z) {
-    // Assume yaw=0
-    let roll = Math.atan2(y, z);
-    let pitch = Math.atan2(-x, Math.sqrt(y * y + z * z));
-    let yaw = 0;
-    return [roll, pitch, yaw];
-  }
+  /* DRONE PARAMS */
 
-  function degs(rad) {
-    return (rad * 180) / Math.PI;
-  }
-
-  function console_log(tag, msg) {
-    const nowMs = new Date();
-    const pad = (n, z = 2) => n.toString().padStart(z, "0");
-    const timeStr = `${pad(nowMs.getHours())}:${pad(nowMs.getMinutes())}:${pad(nowMs.getSeconds())}.${pad(nowMs.getMilliseconds(), 3)}`;
-    const container = document.querySelector(".console-container");
-    const entry = document.createElement("div");
-    entry.className = `console-entry console-${tag}`;
-    entry.innerHTML = `<pre>[${timeStr}] ${msg}</pre>`;
-    container.appendChild(entry);
-    container.scrollTop = container.scrollHeight;
-  }
-
-  function clearConsole() {
-    document.getElementById("console-container").innerHTML = "";
-  }
-
-  function load_params_from_arr(pid_params) {
-    document.getElementById("roll_p").value = pid_params[0];
-    document.getElementById("pitch_p").value = pid_params[1];
-    document.getElementById("yaw_p").value = pid_params[2];
-    document.getElementById("roll_i").value = pid_params[3];
-    document.getElementById("pitch_i").value = pid_params[4];
-    document.getElementById("yaw_i").value = pid_params[5];
-    document.getElementById("roll_d").value = pid_params[6];
-    document.getElementById("pitch_d").value = pid_params[7];
-    document.getElementById("yaw_d").value = pid_params[8];
-    document.getElementById("roll_integral_limit").value = pid_params[9];
-    document.getElementById("pitch_integral_limit").value = pid_params[10];
-    document.getElementById("yaw_integral_limit").value = pid_params[11];
-    document.getElementById("nw_scale").value = pid_params[12];
-    document.getElementById("ne_scale").value = pid_params[13];
-    document.getElementById("sw_scale").value = pid_params[14];
-    document.getElementById("se_scale").value = pid_params[15];
-    document.getElementById("forward_angle").value = pid_params[16];
-    document.getElementById("backward_angle").value = pid_params[17];
-    document.getElementById("left_angle").value = pid_params[18];
-    document.getElementById("right_angle").value = pid_params[19];
-    document.getElementById("yaw_deadzone").value = pid_params[20];
-    document.getElementById("yaw_speed").value = pid_params[21];
-  }
-
-  // Joystick viz
-  const canvas = document.getElementById("joystickCanvas");
-  const ctx = canvas.getContext("2d");
-  const radius = 50;
-  const pad = (canvas.width - 4 * radius) / 4; // padding
-  const center_left = radius + pad;
-  const center_right = canvas.width - radius - pad;
-  const centerY = canvas.height / 2;
-
-  function drawJoystick(lx = 0, ly = 0, rx = 0, ry = 0) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Draw outer squares
-    ctx.beginPath();
-    ctx.rect(center_left - radius, centerY - radius, radius * 2, radius * 2);
-    ctx.strokeStyle = "gray";
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.rect(center_right - radius, centerY - radius, radius * 2, radius * 2);
-    ctx.strokeStyle = "gray";
-    ctx.stroke();
-
-    // Draw joystick position
-    ctx.beginPath();
-    ctx.arc(center_left + lx * radius, centerY + ly * radius, 10, 0, 2 * Math.PI);
-    ctx.fillStyle = "blue";
-    ctx.fill();
-
-    ctx.beginPath();
-    ctx.arc(center_right + rx * radius, centerY + ry * radius, 10, 0, 2 * Math.PI);
-    ctx.fillStyle = "blue";
-    ctx.fill();
-  }
-
-  // PID parameters
-  document.getElementById("update_pid").addEventListener("click", () => {
-    const pid_params = [
-      document.getElementById("roll_p").value,
-      document.getElementById("pitch_p").value,
-      document.getElementById("yaw_p").value,
-
-      document.getElementById("roll_i").value,
-      document.getElementById("pitch_i").value,
-      document.getElementById("yaw_i").value,
-
-      document.getElementById("roll_d").value,
-      document.getElementById("pitch_d").value,
-      document.getElementById("yaw_d").value,
-
-      document.getElementById("roll_integral_limit").value,
-      document.getElementById("pitch_integral_limit").value,
-      document.getElementById("yaw_integral_limit").value,
-
-      document.getElementById("nw_scale").value,
-      document.getElementById("ne_scale").value,
-      document.getElementById("sw_scale").value,
-      document.getElementById("se_scale").value,
-
-      document.getElementById("forward_angle").value,
-      document.getElementById("backward_angle").value,
-      document.getElementById("left_angle").value,
-      document.getElementById("right_angle").value,
-
-      document.getElementById("yaw_deadzone").value,
-      document.getElementById("yaw_speed").value,
-    ];
-    localStorage.setItem("pid_params", JSON.stringify(pid_params));
-    console_log("web", "Saved PID params to local storage: " + pid_params);
-    // insert_into_param_tree(pid_params);
-    try {
-      // pid_socket.send(new Float32Array(pid_params));
-      sendDataSerial("/params", pid_params);
-    } catch {
-      console_log("web", "Couldn't send params to drone.");
-    }
+  // Save params button
+  document.getElementById("update_params").addEventListener("click", () => {
+    const params = getCurrentStabiliserParams();
+    localStorage.setItem("pid_params", JSON.stringify(params));
+    sendJsonData("/params", params);
+    console_log("web", "Saved drone params to local storage: " + params);
   });
 
-  document.getElementById("obtain_pid").addEventListener("click", () => {
-    sendDataSerial("/obtain_pid", "");
+  // Load params button
+  document.getElementById("obtain_params").addEventListener("click", () => {
+    sendJsonData("/obtain_params", "");
   });
 
   // Load pid params on reload
-  const pid_params_str = localStorage.getItem("pid_params");
-  if (pid_params_str) {
-    const pid_params = JSON.parse(pid_params_str);
-    // insert_into_param_tree(pid_params);
+  const drone_params_str = localStorage.getItem("pid_params");
+  if (drone_params_str) {
+    const pid_params = JSON.parse(drone_params_str);
     load_params_from_arr(pid_params);
     console_log("web", "PID params loaded from local storage");
   } else {
     console_log("web", "No PID params to load");
   }
-
-  const chart = new Chart("myChart", {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [],
-    },
-    options: {
-      responsive: true,
-      animation: { duration: 0 },
-      legend: {
-        display: true,
-        onClick(e, legendItem) {
-          ///// ORIGINAL FUNCTION /////
-          var index = legendItem.datasetIndex;
-          var ci = this.chart;
-          var meta = ci.getDatasetMeta(index);
-
-          // See controller.isDatasetVisible comment
-          meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
-          chart.data.datasets[index].hidden = meta.hidden ? meta.hidden : null; // extra line (not in original function)
-
-          // We hid a dataset ... rerender the chart
-          ci.update();
-          ///// ORIGINAL FUNCTION /////
-
-          // Store
-          localStorage.setItem(chart.data.datasets[index].label, meta.hidden);
-        },
-      },
-    },
-  });
-
-  function getLastNItems(arr, N) {
-    return arr.slice(Math.max(arr.length - N, 0));
-  }
-
-  // Invoke server endoint with data (intended to send data over serial)
-  function sendDataSerial(endpoint, data) {
-    fetch(endpoint, {
-      method: "POST", // Specify the HTTP method as POST
-      headers: {
-        "Content-Type": "application/json", // Indicate that the body contains JSON data
-      },
-      body: JSON.stringify({ data: data }), // Convert the JavaScript object to a JSON string
-    });
-  }
-
-  const MAX_DATA_POINTS = 500;
-  const modelViewer = document.querySelector("model-viewer");
-
-  const port_selector = document.querySelector("select#serial_port");
-
-  async function serial_refresh() {
-    const res = await fetch("/serial_list", {
-      method: "GET", // Specify the HTTP method as POST
-    });
-    const { ports } = await res.json();
-    port_selector.innerHTML = ports
-      .sort()
-      .reverse()
-      .map((p) => `<option value="${p}">${p}</option>`)
-      .join("");
-  }
-
-  document.querySelector("#serial_refresh").addEventListener("click", serial_refresh);
-
-  document.querySelector("#serial_open").addEventListener("click", async () => {
-    const port = port_selector.value;
-    const baudRate = 921600;
-    await fetch("/serial_open", {
-      method: "POST", // Specify the HTTP method as POST
-      headers: {
-        "Content-Type": "application/json", // Indicate that the body contains JSON data
-      },
-      body: JSON.stringify({ port: port, baudRate: baudRate }), // Convert the JavaScript object to a JSON string
-    });
-  });
-
-  document.querySelector("#serial_close").addEventListener("click", async () => {
-    const res = await fetch("/serial_close", {
-      method: "POST", // Specify the HTTP method as POST
-    });
-  });
-
-  serial_refresh();
-
-  function downloadCSV(jsonData) {
-    if (jsonData.length === 0) return;
-
-    const headers = Object.keys(jsonData[0]);
-    const csv = [headers.join(","), ...jsonData.map((row) => headers.map((field) => row[field]).join(","))].join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.setAttribute("href", url);
-    a.setAttribute("download", "drone_data.csv");
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    window.URL.revokeObjectURL(url);
-  }
-
-  function exportData() {
-    downloadCSV(
-      chart.data.labels.map((time, i) => {
-        const row = { time_us: time };
-        chart.data.datasets.forEach((ds) => {
-          row[ds.label] = ds.data[i];
-        });
-        return row;
-      })
-    );
-  }
-
-  const checkbox = document.querySelector("input#hideall");
-  checkbox.addEventListener("change", function () {
-    chart.data.datasets.forEach((ds, index) => {
-      const checked = this.checked ? this.checked : null;
-      const meta = chart.getDatasetMeta(index);
-      meta.hidden = !checked;
-      ds.hidden = !checked;
-
-      localStorage.setItem(ds.label, !checked);
-    });
-    chart.update();
-  });
-
-  const COLORS = [
-    "#F42525",
-    "#25F43A",
-    "#4E25F4",
-    "#F46325",
-    "#25F478",
-    "#8C25F4",
-    "#F4A125",
-    "#25F4B6",
-    "#CA25F4",
-    "#F4DF25",
-    "#25F4F4",
-    "#F425DF",
-    "#CAF425",
-    "#25B6F4",
-    "#F425A1",
-    "#8CF425",
-    "#2578F4",
-    "#F42563",
-    "#4EF425",
-    "#253AF4",
-  ];
-
-  let col_idx = 0;
-
-  function updateChart(jsonData) {
-    // Update model viewer
-    const roll = jsonData[jsonData.length - 1].roll;
-    const pitch = jsonData[jsonData.length - 1].pitch;
-    const yaw = jsonData[jsonData.length - 1].yaw;
-    modelViewer.orientation = `${-roll}deg ${pitch}deg ${yaw}deg`;
-    modelViewer.scale = `1.5 1.5 1.5`;
-    // modelViewer.orientation = `${degs(-roll)}deg ${degs(pitch)}deg 0deg`;
-
-    // Update charts
-    const xVals = jsonData.map((pt) => pt["time_us"]);
-    chart.data.labels.push(...xVals);
-    chart.data.labels = getLastNItems(chart.data.labels, MAX_DATA_POINTS);
-
-    Object.keys(jsonData[0])
-      .filter((key) => key != "time_us")
-      .forEach((key) => {
-        const yVals = jsonData.map((pt) => pt[key]);
-        let existingDataSet = chart.data.datasets.find((ds) => ds.label == key);
-        if (existingDataSet != undefined) {
-          // add y vals
-          existingDataSet.data.push(...yVals);
-        } else {
-          const col = COLORS[col_idx];
-          col_idx = (col_idx + 1) % COLORS.length;
-          existingDataSet = {
-            data: yVals,
-            borderColor: col,
-            borderWidth: 3,
-            pointRadius: 0, // Disable points for this dataset
-            fill: false,
-            label: key,
-            hidden: JSON.parse(localStorage.getItem(key)),
-          };
-          chart.data.datasets.push(existingDataSet);
-        }
-
-        existingDataSet.data = getLastNItems(existingDataSet.data, MAX_DATA_POINTS);
-      });
-
-    chart.update();
-  }
-
-  // Default camera image
-  document.querySelector("img#camera-feed").src = "no-data.png";
 </script>

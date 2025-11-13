@@ -1,0 +1,56 @@
+.heading {
+  background-color: aliceblue;
+  margin-right: 0.5rem;
+  padding-left: 0.2rem;
+}
+h4 {
+  margin-top: 12px;
+  margin-bottom: 12px;
+}
+.section {
+  width: 50%;
+  overflow-x: hidden;
+}
+.section-40 {
+  width: 40%;
+  overflow-x: hidden;
+}
+.section-60 {
+  width: 60%;
+  overflow-x: hidden;
+}
+.section-30 {
+  width: 30%;
+  overflow-x: hidden;
+}
+.console-container {
+  height: 9rem;
+  overflow-y: scroll;
+  border-style: inset;
+  padding: 0.2rem;
+  font-family: monospace;
+}
+.console-entry > pre {
+  margin: 0;
+}
+.console-entry:last-child {
+  background-color: lightgrey;
+}
+.console-drone {
+  color: rgb(0, 113, 0);
+  font-weight: bold;
+}
+.console-web {
+  color: rgb(0, 19, 187);
+}
+.action-button {
+  min-width: 7rem;
+  height: 2rem;
+  font-size: large;
+}
+input[type="number"] {
+  width: 5rem;
+}
+.param-table {
+  margin-bottom: 0.8rem;
+}

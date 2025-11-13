@@ -1,6 +1,7 @@
 const express = require("express");
 const { SerialPort } = require("serialport");
 const { DelimiterParser } = require("@serialport/parser-delimiter");
+const { MSG_TYPES } = require("./public/js/message_types");
 
 const app = express();
 const expressWs = require("express-ws")(app);
@@ -42,15 +43,6 @@ function init_parsers() {
       WS_HANDLE.send(jpegData);
     }
   });
-}
-class MSG_TYPES {
-  static SERIAL_DRONE_PARAMS = 0;
-  static SERIAL_DRONE_DATA = 1;
-  static SERIAL_DRONE_CALIBRATE = 2;
-  static SERIAL_COMMS_MSG = 3;
-  static SERIAL_JOYSTICK = 4;
-  static SERIAL_REQUEST_DRONE_PARAMS = 5;
-  static SERIAL_RECEIVE_DRONE_PARAMS = 6;
 }
 
 function msg_type_byte(msg_type) {
@@ -94,7 +86,7 @@ app.post("/calibrate", (req, res) => {
   res.status(200).json({ message: "Calibrated" });
 });
 
-app.post("/obtain_pid", (req, res) => {
+app.post("/obtain_params", (req, res) => {
   if (SERIAL_PORT) {
     SERIAL_PORT.write(msg_type_byte(MSG_TYPES.SERIAL_REQUEST_DRONE_PARAMS));
   }

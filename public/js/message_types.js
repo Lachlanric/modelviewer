@@ -1,0 +1,9 @@
+export class MSG_TYPES {
+  static SERIAL_DRONE_PARAMS = 0;
+  static SERIAL_DRONE_DATA = 1;
+  static SERIAL_DRONE_CALIBRATE = 2;
+  static SERIAL_COMMS_MSG = 3;
+  static SERIAL_JOYSTICK = 4;
+  static SERIAL_REQUEST_DRONE_PARAMS = 5;
+  static SERIAL_RECEIVE_DRONE_PARAMS = 6;
+}
