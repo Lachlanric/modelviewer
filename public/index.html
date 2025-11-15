@@ -142,6 +142,11 @@
 
       <br />
 
+      <div>
+        <input type="checkbox" id="motor-scales-only" />
+        <label for="motor-scales-only">Disable all except motor scales</label>
+      </div>
+
       <div style="display: flex">
         <div class="section-30">
           <h4 class="heading">Drone orientation</h4>
@@ -254,10 +259,11 @@
 
   // Save params button
   document.getElementById("update_params").addEventListener("click", () => {
-    const params = getCurrentStabiliserParams();
-    localStorage.setItem("pid_params", JSON.stringify(params));
-    sendJsonData("/params", params);
-    console_log("web", "Saved drone params to local storage: " + params);
+    const params_to_send = document.querySelector("#motor-scales-only").checked ? getCurrentStabiliserParams_MotorScalesOnly() : getCurrentStabiliserParams();
+    const params_to_save = getCurrentStabiliserParams();
+    localStorage.setItem("pid_params", JSON.stringify(params_to_save));
+    sendJsonData("/params", params_to_send);
+    console_log("web", "Saved drone params to local storage: " + params_to_save);
   });
 
   // Load params button

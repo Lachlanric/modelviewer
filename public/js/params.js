@@ -56,3 +56,37 @@ function getCurrentStabiliserParams() {
   ];
   return params;
 }
+
+function getCurrentStabiliserParams_MotorScalesOnly() {
+  const params = [
+    0.0,
+    0.0,
+    0.0,
+
+    0.0,
+    0.0,
+    0.0,
+
+    0.0,
+    0.0,
+    0.0,
+
+    0.0,
+    0.0,
+    0.0,
+
+    document.getElementById("nw_scale").value,
+    document.getElementById("ne_scale").value,
+    document.getElementById("sw_scale").value,
+    document.getElementById("se_scale").value,
+
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+
+    0.0,
+    0.0,
+  ];
+  return params;
+}
